@@ -65,9 +65,26 @@ function actualBalance(){return s.baseBalance+effectiveMoves().reduce((a,m)=>a+s
 function salaryMoves(){return effectiveMoves().filter(m=>m.salary).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id)}
 function currentCycleStart(){let x=salaryMoves();return x.length?x[x.length-1].date:null}
 function cycleMoves(){let st=currentCycleStart();return st?effectiveMoves().filter(m=>m.date>=st):effectiveMoves()}
-function monthsTo(d){let a=new Date(today()+'T12:00:00'),b=new Date(d+'T12:00:00');return Math.max(1,(b.getFullYear()-a.getFullYear())*12+b.getMonth()-a.getMonth()+1)}
+function goalPlan(){
+ let goals=s.goals.map((g,i)=>({g,i})).sort((a,b)=>a.g.date.localeCompare(b.g.date));
+ let future=s.moves.filter(m=>m.type==='income'&&m.date>today()).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id).map(m=>({date:m.date,left:m.amount,salary:!!m.salary}));
+ let result={};
+ for(let x of goals){
+   let g=x.g,need=Math.max(0,g.amount-g.saved),covered=0;
+   for(let f of future){
+     if(f.date>g.date||f.left<=0||need-covered<=0)continue;
+     let use=Math.min(f.left,need-covered);f.left-=use;covered+=use;
+   }
+   let uncovered=Math.max(0,need-covered);
+   // Il ciclo attuale conta una sola volta. Si aggiunge un altro ciclo solo
+   // se esiste uno stipendio futuro, marcato come tale, prima della scadenza.
+   let cycles=1+s.moves.filter(m=>m.type==='income'&&m.salary&&m.date>today()&&m.date<=g.date).length;
+   result[x.i]={futureCovered:covered,uncovered,cycles,perCycle:uncovered/Math.max(1,cycles)};
+ }
+ return result;
+}
 function fixedAmountNow(f){let vs=(f.versions||[]).filter(v=>v.from<=today()).sort((a,b)=>a.from.localeCompare(b.from));return vs.length?vs[vs.length-1].amount:Number(f.amount)||0}
-function stats(){let m=cycleMoves(),inc=m.filter(x=>x.type==='income').reduce((a,x)=>a+x.amount,0),spent=m.filter(x=>x.type==='expense').reduce((a,x)=>a+x.amount,0),fixed=s.fixed.reduce((a,f)=>a+fixedAmountNow(f)/(Number(f.freq)||1),0),reserve=s.goals.reduce((a,g)=>a+Math.max(0,g.amount-g.saved)/monthsTo(g.date),0),cycle=inc-spent-fixed-reserve;return{inc,spent,fixed,reserve,cycle,total:cycle+s.savings}}
+function stats(){let m=cycleMoves(),inc=m.filter(x=>x.type==='income').reduce((a,x)=>a+x.amount,0),spent=m.filter(x=>x.type==='expense').reduce((a,x)=>a+x.amount,0),fixed=s.fixed.reduce((a,f)=>a+fixedAmountNow(f)/(Number(f.freq)||1),0),gp=goalPlan(),reserve=Object.values(gp).reduce((a,p)=>a+p.perCycle,0),cycle=inc-spent-fixed-reserve;return{inc,spent,fixed,reserve,cycle,total:cycle+s.savings}}
 function show(k){return s.visibility.all!==false&&s.visibility[k]!==false}function money(v,k){return show(k)?eur(v):'€ ••••••'}
 function applyAppearance(){document.documentElement.dataset.theme=s.appearance.theme;document.documentElement.style.setProperty('--accent',s.appearance.accent)}
 function cat(id){return s.categories.find(c=>String(c.id)===String(id))?.n||'Categoria'}
@@ -79,7 +96,7 @@ function render(){
  $('#summary').innerHTML=`<div class="item row"><span>Entrate ciclo</span><b>${money(x.inc,'summary')}</b></div><div class="item row"><span>Spese registrate</span><b>${money(x.spent,'summary')}</b></div><div class="item row"><span>Spese fisse previste</span><b>${money(x.fixed,'summary')}</b></div><div class="item row"><span>Quota obiettivi</span><b>${money(x.reserve,'summary')}</b></div>`;
  $('#moveList').innerHTML=s.moves.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(m=>`<div class="item row ${m.date>today()?'future':''}"><div><b>${m.desc||cat(m.cat)}</b><div class="muted">${cat(m.cat)} · ${m.date.split('-').reverse().join('/')}${m.date>today()?' · futuro':''}${m.salary?' · stipendio':''}</div></div><div class="actions"><b>${money(m.amount,'list')}</b><button class="mini" onclick="editM(${m.id})" aria-label="Modifica">✎</button><button class="mini" onclick="delM(${m.id})" aria-label="Elimina">×</button></div></div>`).join('')||'<span class="muted">Nessun movimento.</span>';
  $('#fixedList').innerHTML=s.fixed.map((f,i)=>`<div class="item row"><span><b>${f.name}</b><div class="muted">${freqName(f.freq)} · prossima ${f.next.split('-').reverse().join('/')}</div></span><span class="actions">${money(fixedAmountNow(f),'list')} <button class="mini" onclick="editF(${i})">✎</button><button class="mini" onclick="delF(${i})">×</button></span></div>`).join('')||'<span class="muted">Nessuna spesa fissa.</span>';
- $('#goalList').innerHTML=s.goals.map((g,i)=>`<div class="item"><div class="row"><b>${g.name}</b><div class="actions"><button class="mini" onclick="editG(${i})">✎</button><button class="mini" onclick="delG(${i})">×</button></div></div><div class="muted">${g.date.split('-').reverse().join('/')} · già accantonato ${money(g.saved,'list')}</div><div>${money(Math.max(0,g.amount-g.saved)/monthsTo(g.date),'list')} per ciclo</div></div>`).join('')||'<span class="muted">Nessun obiettivo.</span>';
+ let gp=goalPlan();$('#goalList').innerHTML=s.goals.map((g,i)=>`<div class="item"><div class="row"><b>${g.name}</b><div class="actions"><button class="mini" onclick="editG(${i})">✎</button><button class="mini" onclick="delG(${i})">×</button></div></div><div class="muted">${g.date.split('-').reverse().join('/')} · già accantonato ${money(g.saved,'list')}</div>${gp[i].futureCovered>0?`<div class="muted">Entrate future prima della scadenza: ${money(gp[i].futureCovered,'list')}</div>`:''}<div>${money(gp[i].perCycle,'list')} per ciclo · ${gp[i].cycles} ciclo/i utile/i</div></div>`).join('')||'<span class="muted">Nessun obiettivo.</span>';
  $('#catList').innerHTML=s.categories.map((c,i)=>`<div class="item row"><span>${c.n} <span class="muted">${c.t==='income'?'entrata':'spesa'}</span></span><button class="secondary" onclick="delC(${i})">×</button></div>`).join('');
  $('#balanceSet').value=bal||'';$('#savingsSet').value=s.savings||'';$('#theme').value=s.appearance.theme;$('#accent').value=s.appearance.accent;$('#pinEnabled').checked=s.security.pinEnabled;$('#bioEnabled').checked=s.security.bioEnabled;$('#lockDelay').value=String(s.security.lockDelay);$('#backupFreq').value=String([0,7,15,30].includes(s.backup.freq)?s.backup.freq:-1);$('#customFreqWrap').classList.toggle('hide',Number($('#backupFreq').value)!==-1);$('#customFreq').value=s.backup.custom||15;$('#lastBackup').textContent=s.backup.last?'Ultimo backup: '+new Date(s.backup.last).toLocaleString('it-IT'):'Nessun backup ancora creato.';backupReminder();fillCats()
 }
@@ -139,5 +156,5 @@ function unlock(){$('#lock').classList.add('hide');$('#unlockPin').value='';$('#
 $('#unlockBtn').onclick=()=>{if(!s.security.pinEnabled||$('#unlockPin').value===s.security.pin)unlock();else $('#unlockMsg').textContent='PIN errato.'};
 $('#bioBtn').onclick=async()=>{if(await verifyBio())unlock();else $('#unlockMsg').textContent='Biometria non riuscita. Usa il PIN.'};
 let hiddenAt=0;document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if((s.security.pinEnabled||s.security.bioEnabled)&&(s.security.lockDelay===0||Date.now()-hiddenAt>=s.security.lockDelay))lock()});
-(async()=>{await load();applyAppearance();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=6',{scope:'/Budget-personale/'})})();
+(async()=>{await load();applyAppearance();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=6-1',{scope:'/Budget-personale/'})})();
 </script></body></html>

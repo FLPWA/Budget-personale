@@ -112,7 +112,7 @@ function goalPlan(){
    let linked=linkedGoalIncome(g.id,true).filter(m=>m.date<=g.date),received=linked.filter(m=>m.date<=today()).reduce((a,m)=>a+m.amount,0),future=linked.filter(m=>m.date>today()).reduce((a,m)=>a+m.amount,0);
    let initial=String(s.initialEarmarkedGoal)===String(g.id)?(Number(s.initialEarmarked)||0):0;
    let uncovered=Math.max(0,g.amount-initial-received-future);
-   let cycles=1+s.moves.filter(m=>m.type==='income'&&m.salary&&m.date>today()&&m.date<=g.date).length;
+   let start=currentCycleStart()||today(),cycles=monthsCeil(start,g.date);
    result[i]={futureCovered:future,receivedCovered:received,uncovered,cycles,perCycle:uncovered/Math.max(1,cycles)};
  });
  return result;

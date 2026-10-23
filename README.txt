@@ -1,31 +1,86 @@
-BUDGET PERSONALE PWA v3
+BUDGET PERSONALE PWA — v13
 
 File inclusi:
 - index.html
 - manifest.webmanifest
 - sw.js
+- icon-192.png
+- icon-512.png
 - README.txt
 
-Modifiche v3:
-- il promemoria backup non compare sull'app vuota
-- backup .budget cifrato con password
-- cifratura AES-GCM 256 bit
-- chiave derivata con PBKDF2-SHA256
-- la password del backup non viene salvata
-- compatibilità di ripristino con i vecchi backup v2 non cifrati
-- pallino privacy invariato
+DATI
+I dati operativi restano nel database IndexedDB locale del dispositivo.
+Il repository GitHub contiene soltanto l'applicazione.
 
-IMPORTANTE:
-Se dimentichi la password di un backup cifrato, quel backup non è recuperabile.
-I dati operativi restano nel database locale IndexedDB del dispositivo.
+LOGICA CONTABILE
+- Saldo totale sul conto: saldo bancario effettivo.
+- Disponibilità Mensile: denaro del ciclo stipendio ancora spendibile.
+- Risparmi disponibili: risparmi liberi iniziali + residui dei cicli chiusi + entrate extra libere - spese pagate dai risparmi - trasferimenti verso fondi accantonati.
+- Fondi accantonati: denaro vincolato creato esclusivamente da accantonamenti, entrate destinate a obiettivi e quote delle spese periodiche non mensili.
+- Disponibilità totale = Disponibilità Mensile + Risparmi disponibili.
+- Da accantonare: importo complessivo ancora scoperto degli obiettivi.
 
-- icona personalizzata nero/blu per installazione PWA
+IMPOSTAZIONI > BUDGET
+Sono presenti soltanto:
+- Saldo di riferimento
+- Risparmi liberi iniziali
 
-- v5: correzione installazione PWA, manifest forzato, id/scope/start_url espliciti, icone any+maskable, cache aggiornata
+Non esiste più l'inserimento diretto di “Fondi già accantonati” nelle Impostazioni.
+Per destinare denaro già presente a un obiettivo usare “Accantona fondi”.
+Un'entrata può inoltre essere destinata direttamente a un obiettivo e in quel caso non aumenta i risparmi liberi.
 
-- v6: movimenti futuri esclusi dal saldo fino alla data effettiva; stipendio futuro non chiude il ciclo in anticipo
-- v6: modifica/elimina con icone per movimenti, obiettivi e spese fisse
-- v6: obiettivi puliscono il modulo dopo il salvataggio
-- v6: spese fisse con prossima scadenza e variazioni di importo con data di decorrenza
-- v6: toast interni per i salvataggi
-- v6: rimozione/cambio PIN e biometria richiedono autenticazione
+SALDO DI RIFERIMENTO
+Il saldo inserito viene riconciliato con i movimenti effettivi già presenti nell'app, così non vengono conteggiati due volte.
+Da quel punto i nuovi movimenti effettivi modificano normalmente il saldo.
+
+CICLO STIPENDIO
+Lo stipendio alimenta la Disponibilità Mensile.
+Alla partenza di un nuovo ciclo, l'eventuale residuo del ciclo precedente passa una sola volta nei Risparmi disponibili.
+Le altre entrate non alimentano il mensile: vanno nei risparmi oppure direttamente a un obiettivo.
+
+SPESE
+Ogni spesa sceglie la fonte: Disponibilità Mensile, Risparmi o Fondi accantonati.
+Se la fonte scelta non basta, l'app consente di coprire il residuo con una seconda fonte.
+
+SPESE FISSE
+Le spese mensili previste incidono sulla Disponibilità Mensile del ciclo.
+Le spese periodiche non mensili generano una quota per ciclo che passa direttamente da Disponibilità Mensile a Fondi accantonati, senza transitare dai Risparmi.
+Le spese fisse sono raggruppate per frequenza e ordinate per prossima scadenza.
+
+OBIETTIVI
+Creare un obiettivo non sposta denaro.
+L'importo scoperto compare in “Da accantonare”.
+La quota per ciclo è informativa.
+La copertura aumenta con:
+- Accantona fondi associato all'obiettivo
+- entrate destinate direttamente all'obiettivo
+
+CATEGORIE
+Le categorie si gestiscono dalle Impostazioni.
+Durante l'inserimento di un movimento o di una spesa fissa è disponibile in fondo alla scelta categoria “+ Crea nuova categoria…”, senza uscire dal modulo.
+
+INTERFACCIA
+- Home con sei riquadri riordinabili.
+- Pallino privacy globale e per singolo importo.
+- Impostazioni tramite ingranaggio.
+- Guida generale tramite icona informazioni.
+- Nessun alert/confirm/prompt nativo del browser: avvisi, conferme e richieste usano finestre interne all'app.
+
+REPORT
+Report annuale delle spese effettive per categoria e previsione annualizzata delle spese fisse, con dettaglio selezionabile.
+
+BACKUP
+Backup cifrato AES-GCM 256 bit.
+Chiave derivata con PBKDF2-SHA256, 250.000 iterazioni.
+La password non viene salvata nell'app.
+
+PWA
+Service worker v13 con navigazione network-first e cache aggiornata.
+URL previsto: https://flpwa.github.io/Budget-personale/
+
+AGGIORNAMENTO v13
+- Rimossi definitivamente “Fondi già accantonati” e relativa associazione obiettivo dalle Impostazioni.
+- I vecchi fondi iniziali vengono azzerati dalla vecchia configurazione: per ricrearli usare “Accantona fondi”.
+- Mantenuta la separazione strutturale tra saldo, mensile, risparmi e fondi accantonati.
+- Mantenuta la creazione rapida delle categorie nei moduli.
+- Mantenuti i modal interni al posto delle finestre native del browser.

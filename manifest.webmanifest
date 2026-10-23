@@ -1,0 +1,10 @@
+{
+  "name": "Budget Personale",
+  "short_name": "Budget",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f6f8",
+  "theme_color": "#f7f7f8",
+  "description": "Budget personale locale da stipendio a stipendio"
+}

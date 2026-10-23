@@ -142,7 +142,7 @@ function stats(){
  let cycle=salary-spentMonthly-futureMonthly-fixed-ts.monthly;
  let goalEarmarked=(Number(s.initialEarmarked)||0)+s.goals.reduce((a,g)=>a+linkedGoalIncome(g.id,false).filter(m=>m.date<=g.date).reduce((z,m)=>z+m.amount,0),0);
  let earmarked=Math.max(0,goalEarmarked+fixedAccrued+ts.earmarked-spentEarmarked-futureEarmarked);
- let total=actualBalance()-earmarked-futureMonthly-futureSavings-fixedMonthly-fixedAccrual;
+ let total=actualBalance()-earmarked-futureMonthly-futureSavings-fixedMonthly;
  let autoSavings=total-cycle;
  return{inc:salary,extra,spent:spentMonthly,spentSavings,spentEarmarked,futureSpent:futureMonthly,futureSavings,futureEarmarked,fixed,fixedMonthly,fixedAccrual,reserve,goalQuota,cycle,total,autoSavings,earmarked}
 }

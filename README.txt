@@ -85,4 +85,7 @@ AGGIORNAMENTO v13
 - Mantenuta la creazione rapida delle categorie nei moduli.
 - Mantenuti i modal interni al posto delle finestre native del browser.
 
-- v14: le spese future prenotano immediatamente la disponibilità della fonte scelta (Mensile, Risparmi o Fondi accantonati), mentre il Saldo totale del conto cambia solo alla data effettiva. Il passaggio da futuro a effettivo non sottrae una seconda volta la disponibilità.
+- v15: le spese future prenotano immediatamente la disponibilità della fonte scelta (Mensile, Risparmi o Fondi accantonati), mentre il Saldo totale del conto cambia solo alla data effettiva. Il passaggio da futuro a effettivo non sottrae una seconda volta la disponibilità.
+
+v15 - Saldo di riferimento nelle Impostazioni
+Il campo "Saldo di riferimento" resta la fotografia salvata dall'utente e non viene modificato dalla registrazione di nuovi movimenti. Il "Saldo totale sul conto" nella Home resta invece il valore contabile aggiornato: cambia con i movimenti effettivi, mentre i movimenti futuri prenotano la disponibilità senza modificare il saldo bancario fino alla loro data.

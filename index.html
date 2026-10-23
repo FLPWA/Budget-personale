@@ -15,9 +15,23 @@ nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px
 .actions{display:flex;gap:5px;align-items:center}.mini{border:0;background:transparent;padding:4px 6px;font-size:18px;line-height:1;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:82px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:50;font-weight:700;box-shadow:0 8px 30px #0005;max-width:88%;text-align:center}
 .future{opacity:.65}.editnote{font-size:12px;color:var(--accent);margin-top:6px}
+.modalback{position:fixed;inset:0;background:#0009;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.modalbox{width:min(420px,100%);background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 20px 60px #0008}
+.modalactions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}.modalactions button{width:auto;padding:11px 18px}
+.modaldelete{background:var(--danger);color:white;border:0;border-radius:12px}
 </style></head><body>
 <div id="lock" class="security hide"><div class="card"><h2>Budget Personale</h2><p class="muted">App protetta</p><button id="bioBtn" class="primary hide">Usa biometria</button><label>PIN</label><input id="unlockPin" type="password" inputmode="numeric" maxlength="8"><button id="unlockBtn" class="primary">Sblocca</button><p id="unlockMsg" class="danger"></p></div></div>
-<div id="toast" class="toast hide"></div><div class="app">
+<div id="toast" class="toast hide"></div>
+<div id="confirmModal" class="modalback hide">
+  <div class="modalbox">
+    <h3 id="confirmTitle" style="margin-top:0">Conferma</h3>
+    <div id="confirmText"></div>
+    <div class="modalactions">
+      <button id="confirmCancel" class="secondary">Annulla</button>
+      <button id="confirmOk" class="modaldelete">Elimina</button>
+    </div>
+  </div>
+</div><div class="app">
 <div class="top"><h1>Budget Personale</h1><button id="allEye" class="icon" aria-label="Mostra o nascondi cifre">◉</button></div>
 <div id="backupReminder" class="notice hide"></div>
 
@@ -53,6 +67,16 @@ let s,editMoveId=null,editGoalIndex=null,editFixedIndex=null,toastTimer=null;
 const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)],today=()=>new Date().toISOString().slice(0,10),eur=n=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n||0),num=v=>{let x=String(v||'').trim().replace(/\s/g,'');if(x.includes(','))x=x.replace(/\./g,'').replace(',','.');return Number(x)||0};
 const signed=m=>m.type==='income'?m.amount:-m.amount;
 function toast(msg){let e=$('#toast');e.textContent='✓ '+msg;e.classList.remove('hide');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.add('hide'),2200)}
+function appConfirm(text,{title='Conferma',ok='Elimina',danger=true}={}){
+ return new Promise(resolve=>{
+   let m=$('#confirmModal'),b=$('#confirmOk');
+   $('#confirmTitle').textContent=title;$('#confirmText').textContent=text;b.textContent=ok;
+   b.className=danger?'modaldelete':'primary';
+   m.classList.remove('hide');
+   const done=v=>{m.classList.add('hide');b.onclick=null;$('#confirmCancel').onclick=null;resolve(v)};
+   b.onclick=()=>done(true);$('#confirmCancel').onclick=()=>done(false);
+ });
+}
 function dbOpen(){return new Promise((res,rej)=>{let q=indexedDB.open(DB,1);q.onupgradeneeded=()=>q.result.createObjectStore(STORE);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
 async function load(){let db=await dbOpen();s=await new Promise(res=>{let q=db.transaction(STORE).objectStore(STORE).get(KEY);q.onsuccess=()=>res(q.result||structuredClone(D));q.onerror=()=>res(structuredClone(D))});s={...structuredClone(D),...s,appearance:{...D.appearance,...(s.appearance||{})},security:{...D.security,...(s.security||{})},backup:{...D.backup,...(s.backup||{})},visibility:{...D.visibility,...(s.visibility||{})}};
  // v6 migration: old balance included every registered movement, even future ones.
@@ -107,28 +131,28 @@ function b64(u8){let x='';u8.forEach(v=>x+=String.fromCharCode(v));return btoa(x
 function unb64(x){return Uint8Array.from(atob(x),c=>c.charCodeAt(0))}
 async function backupKey(password,salt){let base=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
 async function exportBackup(){let password=$('#backupPassword').value;if(password.length<6)return alert('Inserisci una password di almeno 6 caratteri per il backup.');try{let salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await backupKey(password,salt),plain=new TextEncoder().encode(JSON.stringify({format:'BudgetPersonale',version:6,created:new Date().toISOString(),data:s})),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain)),payload={format:'BudgetPersonaleEncrypted',version:1,kdf:'PBKDF2-SHA256',iterations:250000,cipher:'AES-GCM-256',salt:b64(salt),iv:b64(iv),data:b64(cipher)};let blob=new Blob([JSON.stringify(payload)],{type:'application/octet-stream'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='Budget_Backup_'+today()+'.budget';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);s.backup.last=new Date().toISOString();s.backup.snoozeUntil=null;await save();$('#backupPassword').value='';render();toast('Backup creato')}catch(e){alert('Non è stato possibile creare il backup.')}}
-$('#importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let p=JSON.parse(await f.text()),restored;if(p.format==='BudgetPersonaleEncrypted'){let password=prompt('Inserisci la password del backup:');if(password===null){e.target.value='';return}let salt=unb64(p.salt),iv=unb64(p.iv),key=await backupKey(password,salt),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,unb64(p.data));let inner=JSON.parse(new TextDecoder().decode(plain));if(inner.format!=='BudgetPersonale'||!inner.data)throw 0;restored=inner.data}else if(p.format==='BudgetPersonale'&&p.data){if(!confirm('Questo è un vecchio backup non cifrato. Vuoi comunque ripristinarlo?')){e.target.value='';return}restored=p.data}else throw 0;if(!confirm('Ripristinare questo backup? I dati attuali verranno sostituiti.')){e.target.value='';return}s=restored;await save();location.reload()}catch{alert('Password errata oppure file di backup non valido.')}e.target.value=''};
+$('#importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let p=JSON.parse(await f.text()),restored;if(p.format==='BudgetPersonaleEncrypted'){let password=prompt('Inserisci la password del backup:');if(password===null){e.target.value='';return}let salt=unb64(p.salt),iv=unb64(p.iv),key=await backupKey(password,salt),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,unb64(p.data));let inner=JSON.parse(new TextDecoder().decode(plain));if(inner.format!=='BudgetPersonale'||!inner.data)throw 0;restored=inner.data}else if(p.format==='BudgetPersonale'&&p.data){if(!await appConfirm('Questo è un vecchio backup non cifrato. Vuoi comunque ripristinarlo?',{title:'Backup non cifrato',ok:'Continua',danger:false})){e.target.value='';return}restored=p.data}else throw 0;if(!await appConfirm('I dati attuali verranno sostituiti con quelli del backup.',{title:'Ripristinare il backup?',ok:'Ripristina'})){e.target.value='';return}s=restored;await save();location.reload()}catch{alert('Password errata oppure file di backup non valido.')}e.target.value=''};
 
 function clearMoveForm(){editMoveId=null;$('#mType').value='expense';fillCats();$('#mAmount').value='';$('#mDate').value=today();$('#mDesc').value='';$('#isSalary').checked=false;$('#addMove').textContent='Salva movimento';$('#cancelMoveEdit').classList.add('hide')}
 window.editM=id=>{let m=s.moves.find(x=>x.id===id);if(!m)return;editMoveId=id;$('#mType').value=m.type;fillCats();$('#mAmount').value=m.amount;$('#mCat').value=m.cat;$('#mDate').value=m.date;$('#mDesc').value=m.desc||'';$('#isSalary').checked=!!m.salary;$('#addMove').textContent='Salva modifica';$('#cancelMoveEdit').classList.remove('hide');window.scrollTo({top:0,behavior:'smooth'})};
-window.delM=async id=>{if(!confirm('Eliminare questo movimento? Saldo e ciclo verranno ricalcolati.'))return;s.moves=s.moves.filter(x=>x.id!==id);await save();render();toast('Movimento eliminato')};
+window.delM=async id=>{if(!await appConfirm('Eliminare questo movimento? Saldo e ciclo verranno ricalcolati.'))return;s.moves=s.moves.filter(x=>x.id!==id);await save();render();toast('Movimento eliminato')};
 $('#cancelMoveEdit').onclick=clearMoveForm;
 $('#mType').onchange=fillCats;$('#mDate').value=today();
 $('#addMove').onclick=async()=>{let type=$('#mType').value,a=num($('#mAmount').value),date=$('#mDate').value||today();if(!a)return alert('Inserisci un importo.');let obj={id:editMoveId||Date.now(),type,amount:a,cat:$('#mCat').value,date,desc:$('#mDesc').value.trim(),salary:type==='income'&&$('#isSalary').checked};if(editMoveId){let i=s.moves.findIndex(x=>x.id===editMoveId);s.moves[i]=obj}else s.moves.push(obj);await save();let wasEdit=!!editMoveId;clearMoveForm();render();toast(wasEdit?'Movimento modificato':'Movimento salvato')};
 
 function clearFixedForm(){editFixedIndex=null;$('#fName').value='';$('#fAmount').value='';$('#fFreq').value='1';$('#fNext').value='';$('#fEffective').value=today();$('#fEffectiveWrap').classList.add('hide');$('#addFixed').textContent='Aggiungi';$('#cancelFixedEdit').classList.add('hide')}
 window.editF=i=>{let f=s.fixed[i];editFixedIndex=i;$('#fName').value=f.name;$('#fAmount').value=fixedAmountNow(f);$('#fFreq').value=String(f.freq);$('#fNext').value=f.next;$('#fEffective').value=today();$('#fEffectiveWrap').classList.remove('hide');$('#addFixed').textContent='Salva modifica';$('#cancelFixedEdit').classList.remove('hide');window.scrollTo({top:0,behavior:'smooth'})};
-window.delF=async i=>{if(!confirm('Eliminare questa spesa fissa?'))return;s.fixed.splice(i,1);await save();clearFixedForm();render();toast('Spesa fissa eliminata')};
+window.delF=async i=>{if(!await appConfirm('Eliminare questa spesa fissa?'))return;s.fixed.splice(i,1);await save();clearFixedForm();render();toast('Spesa fissa eliminata')};
 $('#cancelFixedEdit').onclick=clearFixedForm;
 $('#addFixed').onclick=async()=>{let n=$('#fName').value.trim(),a=num($('#fAmount').value),next=$('#fNext').value;if(!n||!a||!next)return alert('Compila nome, importo e prossima scadenza.');if(editFixedIndex!==null){let f=s.fixed[editFixedIndex],from=$('#fEffective').value||today();f.name=n;f.freq=Number($('#fFreq').value);f.next=next;f.versions=f.versions||[{from:'0000-01-01',amount:f.amount}];f.versions=f.versions.filter(v=>v.from!==from);f.versions.push({from,amount:a});f.amount=a}else{s.fixed.push({name:n,amount:a,freq:Number($('#fFreq').value),next,versions:[{from:'0000-01-01',amount:a}]})}await save();let wasEdit=editFixedIndex!==null;clearFixedForm();render();toast(wasEdit?'Spesa fissa modificata':'Spesa fissa aggiunta')};
 
 function clearGoalForm(){editGoalIndex=null;$('#gName').value='';$('#gAmount').value='';$('#gDate').value='';$('#gSaved').value='';$('#addGoal').textContent='Aggiungi';$('#cancelGoalEdit').classList.add('hide')}
 window.editG=i=>{let g=s.goals[i];editGoalIndex=i;$('#gName').value=g.name;$('#gAmount').value=g.amount;$('#gDate').value=g.date;$('#gSaved').value=g.saved||'';$('#addGoal').textContent='Salva modifica';$('#cancelGoalEdit').classList.remove('hide');window.scrollTo({top:0,behavior:'smooth'})};
-window.delG=async i=>{if(!confirm('Eliminare questo obiettivo?'))return;s.goals.splice(i,1);await save();clearGoalForm();render();toast('Obiettivo eliminato')};
+window.delG=async i=>{if(!await appConfirm('Eliminare questo obiettivo?'))return;s.goals.splice(i,1);await save();clearGoalForm();render();toast('Obiettivo eliminato')};
 $('#cancelGoalEdit').onclick=clearGoalForm;
 $('#addGoal').onclick=async()=>{let n=$('#gName').value.trim(),a=num($('#gAmount').value),d=$('#gDate').value;if(!n||!a||!d)return alert('Compila nome, costo e data prevista.');let obj={name:n,amount:a,date:d,saved:num($('#gSaved').value)};if(editGoalIndex!==null)s.goals[editGoalIndex]=obj;else s.goals.push(obj);await save();let wasEdit=editGoalIndex!==null;clearGoalForm();render();toast(wasEdit?'Obiettivo modificato':'Obiettivo aggiunto')};
 
-window.delC=async i=>{let id=s.categories[i].id;if(s.moves.some(m=>String(m.cat)===String(id)))return alert('Categoria già utilizzata.');if(!confirm('Eliminare questa categoria?'))return;s.categories.splice(i,1);await save();render()};
+window.delC=async i=>{let id=s.categories[i].id;if(s.moves.some(m=>String(m.cat)===String(id)))return alert('Categoria già utilizzata.');if(!await appConfirm('Eliminare questa categoria?'))return;s.categories.splice(i,1);await save();render()};
 $('#addCat').onclick=async()=>{let n=$('#cName').value.trim();if(!n)return;s.categories.push({id:Date.now(),n,t:$('#cType').value});await save();$('#cName').value='';render();toast('Categoria aggiunta')};
 
 $$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.remove('navon'));b.classList.add('navon');$$('.panel').forEach(p=>p.classList.toggle('active',p.id===b.dataset.tab))});
@@ -156,5 +180,5 @@ function unlock(){$('#lock').classList.add('hide');$('#unlockPin').value='';$('#
 $('#unlockBtn').onclick=()=>{if(!s.security.pinEnabled||$('#unlockPin').value===s.security.pin)unlock();else $('#unlockMsg').textContent='PIN errato.'};
 $('#bioBtn').onclick=async()=>{if(await verifyBio())unlock();else $('#unlockMsg').textContent='Biometria non riuscita. Usa il PIN.'};
 let hiddenAt=0;document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if((s.security.pinEnabled||s.security.bioEnabled)&&(s.security.lockDelay===0||Date.now()-hiddenAt>=s.security.lockDelay))lock()});
-(async()=>{await load();applyAppearance();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=6-1',{scope:'/Budget-personale/'})})();
+(async()=>{await load();applyAppearance();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=7',{scope:'/Budget-personale/'})})();
 </script></body></html>

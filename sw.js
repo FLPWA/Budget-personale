@@ -1,4 +1,4 @@
-const CACHE='budget-v13';
+const CACHE='budget-v14';
 const STATIC=[
   '/Budget-personale/manifest.webmanifest?v=13',
   '/Budget-personale/icon-192.png?v=13',

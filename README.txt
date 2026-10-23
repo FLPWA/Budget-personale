@@ -84,3 +84,5 @@ AGGIORNAMENTO v13
 - Mantenuta la separazione strutturale tra saldo, mensile, risparmi e fondi accantonati.
 - Mantenuta la creazione rapida delle categorie nei moduli.
 - Mantenuti i modal interni al posto delle finestre native del browser.
+
+- v14: le spese future prenotano immediatamente la disponibilità della fonte scelta (Mensile, Risparmi o Fondi accantonati), mentre il Saldo totale del conto cambia solo alla data effettiva. Il passaggio da futuro a effettivo non sottrae una seconda volta la disponibilità.

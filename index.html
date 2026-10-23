@@ -134,6 +134,28 @@ function expenseParts(m){
  return {[moveAllocation(m)]:Number(m.amount)||0};
 }
 function transferSums(){let st=currentCycleStart(),r={monthly:0,savings:0,earmarked:0};(s.transfers||[]).filter(t=>t.date<=today()).forEach(t=>{let a=Number(t.amount)||0;if(!st||t.date>=st)r[t.from]=(r[t.from]||0)+a;r.earmarked+=a});return r}
+function legacySavingsResidual(){
+ let m=cycleMoves(),salary=m.filter(x=>x.type==='income'&&x.salary).reduce((a,x)=>a+x.amount,0),spentMonthly=0,spentEarmarked=0;
+ m.filter(x=>x.type==='expense').forEach(x=>{let p=expenseParts(x);spentMonthly+=p.monthly||0;spentEarmarked+=(p.earmarked||0)+(p.goal||0)});
+ let end=cycleEnd(),future=s.moves.filter(x=>x.type==='expense'&&x.date>today()&&x.date<=end),futureMonthly=0,futureSavings=0,futureEarmarked=0;
+ future.forEach(x=>{let p=expenseParts(x);futureMonthly+=p.monthly||0;futureSavings+=p.savings||0;futureEarmarked+=(p.earmarked||0)+(p.goal||0)});
+ let fp=fixedPlan(),fixedMonthly=fp.filter((x,i)=>Number(s.fixed[i]?.freq)===1).reduce((a,x)=>a+x.reserve,0),fixedAccrual=fp.filter((x,i)=>Number(s.fixed[i]?.freq)>1).reduce((a,x)=>a+x.reserve,0),fixedAccrued=fp.reduce((a,x)=>a+x.accrued,0),ts=transferSums();
+ let cycle=salary-spentMonthly-futureMonthly-fixedMonthly-fixedAccrual-ts.monthly;
+ let goalEarmarked=(Number(s.initialEarmarked)||0)+s.goals.reduce((a,g)=>a+linkedGoalIncome(g.id,false).filter(m=>m.date<=g.date).reduce((z,m)=>z+m.amount,0),0);
+ let earmarked=Math.max(0,goalEarmarked+fixedAccrued+ts.earmarked-spentEarmarked-futureEarmarked);
+ let total=actualBalance()-earmarked-futureMonthly-futureSavings-fixedMonthly;
+ return Math.max(0,total-cycle);
+}
+function freeSavings(){
+ // Contenitore autonomo: base iniziale libera + avanzi cicli chiusi + entrate extra libere
+ // - spese pagate dai risparmi - trasferimenti dai risparmi agli accantonati.
+ let base=Number(s.savings)||0;
+ let rollover=(s.cycles||[]).reduce((a,c)=>a+(Number(c.rollover)||0),0);
+ let extra=effectiveMoves().filter(x=>x.type==='income'&&!x.salary&&moveAllocation(x)==='savings').reduce((a,x)=>a+(Number(x.amount)||0),0);
+ let spent=effectiveMoves().filter(x=>x.type==='expense').reduce((a,x)=>a+(expenseParts(x).savings||0),0);
+ let moved=(s.transfers||[]).filter(t=>t.date<=today()&&t.from==='savings').reduce((a,t)=>a+(Number(t.amount)||0),0);
+ return Math.max(0,base+rollover+extra-spent-moved);
+}
 function stats(){
  let m=cycleMoves(),salary=m.filter(x=>x.type==='income'&&x.salary).reduce((a,x)=>a+x.amount,0),extra=m.filter(x=>x.type==='income'&&!x.salary&&moveAllocation(x)==='savings').reduce((a,x)=>a+x.amount,0);
  let spentMonthly=0,spentSavings=0,spentEarmarked=0; m.filter(x=>x.type==='expense').forEach(x=>{let p=expenseParts(x);spentMonthly+=p.monthly||0;spentSavings+=p.savings||0;spentEarmarked+=(p.earmarked||0)+(p.goal||0)});
@@ -142,8 +164,9 @@ function stats(){
  let cycle=salary-spentMonthly-futureMonthly-fixed-ts.monthly;
  let goalEarmarked=(Number(s.initialEarmarked)||0)+s.goals.reduce((a,g)=>a+linkedGoalIncome(g.id,false).filter(m=>m.date<=g.date).reduce((z,m)=>z+m.amount,0),0);
  let earmarked=Math.max(0,goalEarmarked+fixedAccrued+ts.earmarked-spentEarmarked-futureEarmarked);
- let total=actualBalance()-earmarked-futureMonthly-futureSavings-fixedMonthly;
- let autoSavings=total-cycle;
+ let autoSavings=freeSavings();
+ // La Disponibilità totale è un risultato, mai una sorgente: Mensile + Risparmi liberi.
+ let total=cycle+autoSavings;
  return{inc:salary,extra,spent:spentMonthly,spentSavings,spentEarmarked,futureSpent:futureMonthly,futureSavings,futureEarmarked,fixed,fixedMonthly,fixedAccrual,reserve,goalQuota,cycle,total,autoSavings,earmarked}
 }
 function availableSource(source){let x=stats();if(source==='monthly')return Math.max(0,x.cycle);if(source==='savings')return Math.max(0,x.autoSavings);if(source==='earmarked'||source==='goal')return Math.max(0,x.earmarked);return 0}
@@ -218,7 +241,14 @@ $('#addMove').onclick=async()=>{let type=$('#mType').value,a=num($('#mAmount').v
      let second=fb.value,avail2=availableSource(second);if(avail2+0.005<rest)return alert(`${sourceLabel(second)} non basta: disponibili ${eur(avail2)}. Riduci la spesa o sposta prima altri fondi.`);funding=[];if(first>0)funding.push({source:primary,amount:first});funding.push({source:second,amount:rest});
    }else funding=[{source:primary,amount:a}];
  }
- let obj={id:editMoveId||Date.now(),type,amount:a,cat:$('#mCat').value,date,desc:$('#mDesc').value.trim(),salary,allocation,goalId,funding};if(editMoveId){let i=s.moves.findIndex(x=>x.id===editMoveId);s.moves[i]=obj}else s.moves.push(obj);await save();let wasEdit=!!editMoveId;clearMoveForm();render();toast(wasEdit?'Movimento modificato':'Movimento salvato')};
+ let obj={id:editMoveId||Date.now(),type,amount:a,cat:$('#mCat').value,date,desc:$('#mDesc').value.trim(),salary,allocation,goalId,funding};
+ // Quando viene registrato un nuovo stipendio già effettivo, chiude il ciclo precedente:
+ // l'eventuale disponibilità mensile rimasta diventa Risparmio disponibile una sola volta.
+ if(!editMoveId&&salary&&date<=today()&&currentCycleStart()){
+   let oldCycle=Math.max(0,stats().cycle);
+   if(oldCycle>0.004)(s.cycles||(s.cycles=[])).push({id:'roll-'+obj.id,date,rollover:oldCycle,salaryMoveId:obj.id});
+ }
+ if(editMoveId){let i=s.moves.findIndex(x=>x.id===editMoveId);s.moves[i]=obj}else s.moves.push(obj);await save();let wasEdit=!!editMoveId;clearMoveForm();render();toast(wasEdit?'Movimento modificato':'Movimento salvato')};
 
 function clearTransferForm(){editTransferId=null;$('#tFrom').value='monthly';$('#tAmount').value='';$('#tGoal').value='';$('#tNote').value='';$('#addTransfer').textContent='Sposta negli accantonati';$('#cancelTransferEdit').classList.add('hide')}
 window.editT=id=>{let t=(s.transfers||[]).find(x=>x.id===id);if(!t)return;editTransferId=id;$('#tFrom').value=t.from;$('#tAmount').value=t.amount;$('#tGoal').value=t.goalId||'';$('#tNote').value=t.note||'';$('#addTransfer').textContent='Salva modifica';$('#cancelTransferEdit').classList.remove('hide');document.querySelector('#home').scrollIntoView({behavior:'smooth',block:'start'})};

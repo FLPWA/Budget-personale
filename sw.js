@@ -1,10 +1,10 @@
-const CACHE='budget-v5';
+const CACHE='budget-v6';
 const ASSETS=[
   '/Budget-personale/',
   '/Budget-personale/index.html',
-  '/Budget-personale/manifest.webmanifest?v=5',
-  '/Budget-personale/icon-192.png?v=5',
-  '/Budget-personale/icon-512.png?v=5'
+  '/Budget-personale/manifest.webmanifest?v=6',
+  '/Budget-personale/icon-192.png?v=6',
+  '/Budget-personale/icon-512.png?v=6'
 ];
 self.addEventListener('install',event=>{
   self.skipWaiting();

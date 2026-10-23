@@ -22,3 +22,10 @@ I dati operativi restano nel database locale IndexedDB del dispositivo.
 - icona personalizzata nero/blu per installazione PWA
 
 - v5: correzione installazione PWA, manifest forzato, id/scope/start_url espliciti, icone any+maskable, cache aggiornata
+
+- v6: movimenti futuri esclusi dal saldo fino alla data effettiva; stipendio futuro non chiude il ciclo in anticipo
+- v6: modifica/elimina con icone per movimenti, obiettivi e spese fisse
+- v6: obiettivi puliscono il modulo dopo il salvataggio
+- v6: spese fisse con prossima scadenza e variazioni di importo con data di decorrenza
+- v6: toast interni per i salvataggi
+- v6: rimozione/cambio PIN e biometria richiedono autenticazione

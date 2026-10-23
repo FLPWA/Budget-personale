@@ -69,7 +69,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px
 
 <section id="settings" class="panel"><h2>Impostazioni</h2>
 <div class="card"><h3>Aspetto</h3><label>Tema</label><select id="theme"><option value="system">Sistema</option><option value="light">Chiaro</option><option value="dark">Scuro</option></select><label>Colore principale</label><select id="accent"><option value="#2563eb">Blu</option><option value="#0f766e">Verde petrolio</option><option value="#7c3aed">Viola</option><option value="#c2410c">Arancio</option><option value="#be123c">Rosso</option></select><button id="saveAppearance" class="primary">Salva aspetto</button></div>
-<div class="card"><h3>Budget</h3><label>Saldo di riferimento €</label><input id="balanceSet" inputmode="decimal"><div class="muted">Inserisci il saldo reale del conto nel momento da cui vuoi far partire i movimenti registrati nell’app. I movimenti effettivi già presenti vengono riconciliati senza essere conteggiati due volte.</div><label>Risparmi liberi iniziali €</label><input id="savingsSet" inputmode="decimal"><div class="muted">La parte del saldo che vuoi considerare libera. I fondi per obiettivi si creano solo con “Accantona fondi” o destinando un’entrata direttamente a un obiettivo.</div><button id="saveBudget" class="primary">Salva</button></div>
+<div class="card"><h3>Budget</h3><label>Saldo di riferimento €</label><input id="balanceSet" inputmode="decimal"><div class="muted">Inserisci il saldo reale del conto in questo momento. Questo valore resta la fotografia di riferimento nelle Impostazioni: i movimenti già effettivi sono considerati inclusi; quelli futuri modificheranno il saldo della Home solo alla loro data.</div><label>Risparmi liberi iniziali €</label><input id="savingsSet" inputmode="decimal"><div class="muted">La parte del saldo che vuoi considerare libera. I fondi per obiettivi si creano solo con “Accantona fondi” o destinando un’entrata direttamente a un obiettivo.</div><button id="saveBudget" class="primary">Salva</button></div>
 <div class="card"><h3>Categorie</h3><label>Nome</label><input id="cName"><label>Tipo</label><select id="cType"><option value="expense">Spesa</option><option value="income">Entrata</option></select><button id="addCat" class="primary">Aggiungi categoria</button><div id="catList"></div></div>
 <div class="card"><h3>Privacy e sicurezza</h3><label><input id="pinEnabled" class="toggle" type="checkbox"> Proteggi con PIN</label><label>PIN (4–8 cifre)</label><input id="pinSet" type="password" inputmode="numeric" maxlength="8"><label><input id="bioEnabled" class="toggle" type="checkbox"> Accesso biometrico</label><label>Blocco automatico</label><select id="lockDelay"><option value="0">Immediato</option><option value="60000">1 minuto</option><option value="300000">5 minuti</option><option value="900000">15 minuti</option></select><button id="saveSecurity" class="primary">Salva sicurezza</button><p class="muted">La biometria richiede HTTPS e un browser/dispositivo compatibile con WebAuthn.</p></div>
 <div class="card"><h3>Backup e ripristino</h3><div id="lastBackup" class="muted"></div><label>Password backup</label><input id="backupPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><p class="muted">Serve per cifrare il backup e sarà richiesta per ripristinarlo. Non viene salvata nell’app.</p><label>Promemoria backup</label><select id="backupFreq"><option value="0">Disattivato</option><option value="7">Ogni 7 giorni</option><option value="15">Ogni 15 giorni</option><option value="30">Ogni 30 giorni</option><option value="-1">Personalizzato</option></select><div id="customFreqWrap" class="hide"><label>Ogni quanti giorni</label><input id="customFreq" type="number" min="1" max="365"></div><button id="saveBackupPrefs" class="primary">Salva frequenza</button><button id="exportBtn" class="primary">Crea backup</button><label class="secondary" style="display:block;text-align:center;margin-top:10px">Ripristina backup<input id="importFile" type="file" accept=".budget,.json" style="display:none"></label><p class="muted">Il backup è cifrato. Se dimentichi la password, il file non può essere recuperato.</p></div>
@@ -77,9 +77,9 @@ nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px
 <nav><div><button data-tab="home" class="navon">Home</button><button data-tab="moves">Movimenti</button><button data-tab="fixed">Fisse</button><button data-tab="goals">Obiettivi</button><button data-tab="report">Report</button></div></nav>
 <script>
 const DB='BudgetPersonaleDB',STORE='state',KEY='main';
-const D={balance:0,baseBalance:null,savings:0,initialEarmarked:0,initialEarmarkedGoal:null,earmarkedV9Migrated:false,savingsLedgerV1Migrated:false,noInitialEarmarkedV13:false,currentCycleStart:null,moves:[],fixed:[],goals:[],cycles:[],transfers:[],categories:[{id:1,n:'Spesa alimentare',t:'expense'},{id:2,n:'Casa',t:'expense'},{id:3,n:'Auto e carburante',t:'expense'},{id:4,n:'Ristoranti',t:'expense'},{id:5,n:'Svago',t:'expense'},{id:6,n:'Salute',t:'expense'},{id:7,n:'Abbonamenti',t:'expense'},{id:8,n:'Stipendio',t:'income'},{id:9,n:'Altre entrate',t:'income'}],visibility:{all:true},appearance:{theme:'system',accent:'#2563eb'},security:{pinEnabled:false,pin:'',bioEnabled:false,credentialId:null,lockDelay:0},backup:{freq:15,custom:15,last:null,snoozeUntil:null},homeOrder:['balance','savings','cycle','total','earmarked','reserve']};
+const D={balance:0,baseBalance:null,balanceIncludedMoveIds:null,savings:0,initialEarmarked:0,initialEarmarkedGoal:null,earmarkedV9Migrated:false,savingsLedgerV1Migrated:false,noInitialEarmarkedV13:false,currentCycleStart:null,moves:[],fixed:[],goals:[],cycles:[],transfers:[],categories:[{id:1,n:'Spesa alimentare',t:'expense'},{id:2,n:'Casa',t:'expense'},{id:3,n:'Auto e carburante',t:'expense'},{id:4,n:'Ristoranti',t:'expense'},{id:5,n:'Svago',t:'expense'},{id:6,n:'Salute',t:'expense'},{id:7,n:'Abbonamenti',t:'expense'},{id:8,n:'Stipendio',t:'income'},{id:9,n:'Altre entrate',t:'income'}],visibility:{all:true},appearance:{theme:'system',accent:'#2563eb'},security:{pinEnabled:false,pin:'',bioEnabled:false,credentialId:null,lockDelay:0},backup:{freq:15,custom:15,last:null,snoozeUntil:null},homeOrder:['balance','savings','cycle','total','earmarked','reserve']};
 let s,editMoveId=null,editGoalIndex=null,editFixedIndex=null,editTransferId=null,toastTimer=null;
-const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)],today=()=>new Date().toISOString().slice(0,10),eur=n=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n||0),num=v=>{let x=String(v||'').trim().replace(/\s/g,'');if(x.includes(','))x=x.replace(/\./g,'').replace(',','.');return Number(x)||0};
+const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)],localDate=d=>{d=d||new Date();let y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`},today=()=>localDate(),eur=n=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n||0),num=v=>{let x=String(v||'').trim().replace(/\s/g,'');if(x.includes(','))x=x.replace(/\./g,'').replace(',','.');return Number(x)||0};
 const signed=m=>m.type==='income'?m.amount:-m.amount;
 function toast(msg){let e=$('#toast');e.textContent='✓ '+msg;e.classList.remove('hide');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.add('hide'),2200)}
 function appConfirm(text,{title='Conferma',ok='Elimina',danger=true}={}){
@@ -103,6 +103,8 @@ async function load(){let db=await dbOpen();s=await new Promise(res=>{let q=db.t
  const validOrder=D.homeOrder; s.homeOrder=Array.isArray(s.homeOrder)?s.homeOrder.filter(x=>validOrder.includes(x)):[]; validOrder.forEach(x=>{if(!s.homeOrder.includes(x))s.homeOrder.push(x)});
  // v6 migration: old balance included every registered movement, even future ones.
  if(s.baseBalance===null||s.baseBalance===undefined){s.baseBalance=(Number(s.balance)||0)-s.moves.reduce((a,m)=>a+signed(m),0)}
+ // v16: il saldo nelle Impostazioni è una fotografia. I movimenti già effettivi al momento della fotografia sono inclusi; quelli futuri verranno applicati quando diventano effettivi.
+ if(!Array.isArray(s.balanceIncludedMoveIds)){s.balance=Number(s.balance)||((Number(s.baseBalance)||0)+s.moves.filter(m=>m.date<=today()).reduce((a,m)=>a+signed(m),0));s.balanceIncludedMoveIds=s.moves.filter(m=>m.date<=today()).map(m=>String(m.id));s.baseBalance=s.balance}
  s.fixed=(s.fixed||[]).map(f=>({...f,next:f.next||today(),versions:f.versions||[{from:'0000-01-01',amount:Number(f.amount)||0}]}));
  s.goals=(s.goals||[]).map((g,i)=>({...g,id:g.id||('g'+Date.now()+i)}));
  if(!s.earmarkedV9Migrated){let oldSaved=s.goals.reduce((a,g)=>a+(Number(g.saved)||0),0);if(oldSaved>0){s.initialEarmarked=oldSaved;s.initialEarmarkedGoal=s.goals.length===1?s.goals[0].id:null}s.earmarkedV9Migrated=true}
@@ -111,11 +113,11 @@ async function load(){let db=await dbOpen();s=await new Promise(res=>{let q=db.t
  if(!s.savingsLedgerV1Migrated){s.savings=0;s.cycles=[];s.savingsLedgerV1Migrated=true}
  // v13: i fondi iniziali non si configurano più nelle Impostazioni. Gli accantonamenti nascono solo da trasferimenti o entrate destinate.
  if(!s.noInitialEarmarkedV13){s.initialEarmarked=0;s.initialEarmarkedGoal=null;s.goals.forEach(g=>g.saved=0);s.noInitialEarmarkedV13=true}
- s.fixed.forEach(f=>{if(Number(f.freq)>1&&!f.accrualStart)f.accrualStart=currentCycleStart()||today()});
+ s.fixed.forEach(f=>{if(Number(f.freq)>1&&!f.accrualStart)f.accrualStart=currentCycleStart()||today();let step=Math.max(1,Number(f.freq)||1);while(f.next&&f.next<today())f.next=addMonths(f.next,step)});
 }
 async function save(){let db=await dbOpen();return new Promise((res,rej)=>{let tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(s,KEY);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 function effectiveMoves(){return s.moves.filter(m=>m.date<=today())}
-function actualBalance(){return s.baseBalance+effectiveMoves().reduce((a,m)=>a+signed(m),0)}
+function actualBalance(){let included=new Set((s.balanceIncludedMoveIds||[]).map(String));return (Number(s.balance)||0)+effectiveMoves().filter(m=>!included.has(String(m.id))).reduce((a,m)=>a+signed(m),0)}
 function salaryMoves(){return effectiveMoves().filter(m=>m.salary).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id)}
 function currentCycleStart(){let x=salaryMoves();return x.length?x[x.length-1].date:null}
 function cycleMoves(){let st=currentCycleStart();return st?effectiveMoves().filter(m=>m.date>=st):effectiveMoves()}
@@ -136,7 +138,7 @@ function goalPlan(){
  return result;
 }
 function fixedAmountNow(f){let vs=(f.versions||[]).filter(v=>v.from<=today()).sort((a,b)=>a.from.localeCompare(b.from));return vs.length?vs[vs.length-1].amount:Number(f.amount)||0}
-function addMonths(date,n){let d=new Date(date+'T12:00:00');let day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);let last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d.toISOString().slice(0,10)}
+function addMonths(date,n){let d=new Date(date+'T12:00:00');let day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);let last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return localDate(d)}
 function cycleEnd(){let st=currentCycleStart()||today(),next=s.moves.filter(m=>m.type==='income'&&m.salary&&m.date>today()).sort((a,b)=>a.date.localeCompare(b.date))[0];return next?next.date:addMonths(st,1)}
 function futureCycleExpenses(source=null){let end=cycleEnd();return s.moves.filter(m=>m.type==='expense'&&m.date>today()&&m.date<=end&&(!source||moveAllocation(m)===source))}
 function normName(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
@@ -149,31 +151,28 @@ function expenseParts(m){
  return {[moveAllocation(m)]:Number(m.amount)||0};
 }
 function transferSums(){let st=currentCycleStart(),r={monthly:0,savings:0,earmarked:0};(s.transfers||[]).filter(t=>t.date<=today()).forEach(t=>{let a=Number(t.amount)||0;if(!st||t.date>=st)r[t.from]=(r[t.from]||0)+a;r.earmarked+=a});return r}
-function freeSavings(){
- // Contenitore autonomo: base iniziale libera + avanzi cicli chiusi + entrate extra libere
- // - spese pagate dai risparmi - trasferimenti dai risparmi agli accantonati.
+function freeSavings(excludeMoveId=null){
  let base=Number(s.savings)||0;
- let rollover=(s.cycles||[]).reduce((a,c)=>a+(Number(c.rollover)||0),0);
- let extra=effectiveMoves().filter(x=>x.type==='income'&&!x.salary&&moveAllocation(x)==='savings').reduce((a,x)=>a+(Number(x.amount)||0),0);
- let spent=s.moves.filter(x=>x.type==='expense').reduce((a,x)=>a+(expenseParts(x).savings||0),0);
- // Anche le spese future prenotano subito i risparmi: non cambiano il saldo bancario, ma quei soldi non sono più disponibili.
+ let rollover=(s.cycles||[]).filter(c=>!c.date||c.date<=today()).reduce((a,c)=>a+(Number(c.rollover)||0),0);
+ let extra=effectiveMoves().filter(x=>String(x.id)!==String(excludeMoveId)&&x.type==='income'&&!x.salary&&moveAllocation(x)==='savings').reduce((a,x)=>a+(Number(x.amount)||0),0);
+ // Le spese dai risparmi, anche future, prenotano subito il denaro. In modifica il movimento corrente viene neutralizzato.
+ let spent=s.moves.filter(x=>String(x.id)!==String(excludeMoveId)&&x.type==='expense').reduce((a,x)=>a+(expenseParts(x).savings||0),0);
  let moved=(s.transfers||[]).filter(t=>t.date<=today()&&t.from==='savings').reduce((a,t)=>a+(Number(t.amount)||0),0);
- return Math.max(0,base+rollover+extra-spent-moved);
+ return base+rollover+extra-spent-moved;
 }
-function stats(){
- let m=cycleMoves(),salary=m.filter(x=>x.type==='income'&&x.salary).reduce((a,x)=>a+x.amount,0),extra=m.filter(x=>x.type==='income'&&!x.salary&&moveAllocation(x)==='savings').reduce((a,x)=>a+x.amount,0);
- let spentMonthly=0,spentSavings=0,spentEarmarked=0; m.filter(x=>x.type==='expense').forEach(x=>{let p=expenseParts(x);spentMonthly+=p.monthly||0;spentSavings+=p.savings||0;spentEarmarked+=(p.earmarked||0)+(p.goal||0)});
- let end=cycleEnd(),future=s.moves.filter(x=>x.type==='expense'&&x.date>today()),futureMonthly=0,futureSavings=0,futureEarmarked=0;future.forEach(x=>{let p=expenseParts(x);futureMonthly+=p.monthly||0;futureSavings+=p.savings||0;futureEarmarked+=(p.earmarked||0)+(p.goal||0)});
+function stats(excludeMoveId=null){
+ let m=cycleMoves().filter(x=>String(x.id)!==String(excludeMoveId)),salary=m.filter(x=>x.type==='income'&&x.salary).reduce((a,x)=>a+x.amount,0),extra=m.filter(x=>x.type==='income'&&!x.salary&&moveAllocation(x)==='savings').reduce((a,x)=>a+x.amount,0);
+ let spentMonthly=0,spentSavings=0,spentEarmarked=0;m.filter(x=>x.type==='expense').forEach(x=>{let p=expenseParts(x);spentMonthly+=p.monthly||0;spentSavings+=p.savings||0;spentEarmarked+=(p.earmarked||0)+(p.goal||0)});
+ let end=cycleEnd(),future=s.moves.filter(x=>String(x.id)!==String(excludeMoveId)&&x.type==='expense'&&x.date>today()),futureMonthly=0,futureSavings=0,futureEarmarked=0;future.forEach(x=>{let p=expenseParts(x);if(x.date<=end)futureMonthly+=p.monthly||0;futureSavings+=p.savings||0;futureEarmarked+=(p.earmarked||0)+(p.goal||0)});
  let fp=fixedPlan(),fixedMonthly=fp.filter((x,i)=>Number(s.fixed[i]?.freq)===1).reduce((a,x)=>a+x.reserve,0),fixedAccrual=fp.filter((x,i)=>Number(s.fixed[i]?.freq)>1).reduce((a,x)=>a+x.reserve,0),fixed=fixedMonthly+fixedAccrual,fixedAccrued=fp.reduce((a,x)=>a+x.accrued,0),gp=goalPlan(),reserve=Object.values(gp).reduce((a,p)=>a+p.uncovered,0),goalQuota=Object.values(gp).reduce((a,p)=>a+p.perCycle,0),ts=transferSums();
  let cycle=salary-spentMonthly-futureMonthly-fixed-ts.monthly;
  let goalEarmarked=s.goals.reduce((a,g)=>a+linkedGoalIncome(g.id,false).filter(m=>m.date<=g.date).reduce((z,m)=>z+m.amount,0),0);
- let earmarked=Math.max(0,goalEarmarked+fixedAccrued+ts.earmarked-spentEarmarked-futureEarmarked);
- let autoSavings=freeSavings();
- // La Disponibilità totale è un risultato, mai una sorgente: Mensile + Risparmi liberi.
+ let earmarked=goalEarmarked+fixedAccrued+ts.earmarked-spentEarmarked-futureEarmarked;
+ let autoSavings=freeSavings(excludeMoveId);
  let total=cycle+autoSavings;
  return{inc:salary,extra,spent:spentMonthly,spentSavings,spentEarmarked,futureSpent:futureMonthly,futureSavings,futureEarmarked,fixed,fixedMonthly,fixedAccrual,reserve,goalQuota,cycle,total,autoSavings,earmarked}
 }
-function availableSource(source){let x=stats();if(source==='monthly')return Math.max(0,x.cycle);if(source==='savings')return Math.max(0,x.autoSavings);if(source==='earmarked'||source==='goal')return Math.max(0,x.earmarked);return 0}
+function availableSource(source,excludeMoveId=null){let x=stats(excludeMoveId);if(source==='monthly')return Math.max(0,x.cycle);if(source==='savings')return Math.max(0,x.autoSavings);if(source==='earmarked'||source==='goal')return Math.max(0,x.earmarked);return 0}
 function sourceLabel(x){return x==='monthly'?'Disponibilità Mensile':x==='savings'?'Risparmi disponibili':'Fondi accantonati'}
 function show(k){return s.visibility.all!==false&&s.visibility[k]!==false}function money(v,k){return show(k)?eur(v):'€ ••••••'}
 function applyAppearance(){document.documentElement.dataset.theme=s.appearance.theme;document.documentElement.style.setProperty('--accent',s.appearance.accent)}
@@ -235,19 +234,20 @@ $('#importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let
 
 function clearMoveForm(){editMoveId=null;$('#mType').value='expense';$('#isSalary').checked=false;fillCats();$('#mAllocation').value='monthly';updateMoveAllocation();$('#mAmount').value='';$('#mDate').value=today();$('#mDesc').value='';$('#fallbackWrap').classList.add('hide');$('#addMove').textContent='Salva movimento';$('#cancelMoveEdit').classList.add('hide')}
 window.editM=id=>{let m=s.moves.find(x=>x.id===id);if(!m)return;editMoveId=id;$('#mType').value=m.type;$('#isSalary').checked=!!m.salary;fillCats();$('#mAmount').value=m.amount;$('#mCat').value=m.cat;$('#mDate').value=m.date;$('#mDesc').value=m.desc||'';if(!m.salary){$('#mAllocation').value=(m.funding&&m.funding[0]?.source)||moveAllocation(m);updateMoveAllocation();if(m.goalId)$('#mGoal').value=m.goalId}$('#addMove').textContent='Salva modifica';$('#cancelMoveEdit').classList.remove('hide');window.scrollTo({top:0,behavior:'smooth'})};
-window.delM=async id=>{if(!await appConfirm('Eliminare questo movimento? Saldo e ciclo verranno ricalcolati.'))return;s.moves=s.moves.filter(x=>x.id!==id);await save();render();toast('Movimento eliminato')};
+window.delM=async id=>{if(!await appConfirm('Eliminare questo movimento? Saldo e ciclo verranno ricalcolati.'))return;s.moves=s.moves.filter(x=>x.id!==id);s.cycles=(s.cycles||[]).filter(c=>String(c.salaryMoveId)!==String(id));await save();render();toast('Movimento eliminato')};
 $('#cancelMoveEdit').onclick=clearMoveForm;
 $('#mType').onchange=fillCats;$('#isSalary').onchange=updateMoveAllocation;$('#mAllocation').onchange=updateMoveAllocation;$('#mDate').value=today();
 $('#addMove').onclick=async()=>{let type=$('#mType').value,a=num($('#mAmount').value),date=$('#mDate').value||today(),salary=type==='income'&&$('#isSalary').checked,allocation=salary?'monthly':$('#mAllocation').value,goalId=type==='income'&&allocation==='goal'?$('#mGoal').value:null;if(!a)return appNotice('Inserisci un importo.');if(type==='income'&&allocation==='goal'&&!goalId)return appNotice('Seleziona un obiettivo.');let funding=null;
  if(type==='expense'){
-   let primary=allocation,avail=availableSource(primary),first=Math.min(a,avail),rest=Math.max(0,a-first);
+   let primary=allocation,avail=availableSource(primary,editMoveId),first=Math.min(a,avail),rest=Math.max(0,a-first);
    if(rest>0){let wrap=$('#fallbackWrap'),fb=$('#mFallback');if(wrap.classList.contains('hide')){let opts=['monthly','savings','earmarked'].filter(x=>x!==primary);$('#fallbackMsg').textContent=`${sourceLabel(primary)} copre ${eur(first)}. Restano ${eur(rest)} da coprire.`;fb.innerHTML=opts.map(x=>`<option value="${x}">${sourceLabel(x)}</option>`).join('');wrap.classList.remove('hide');return}
-     let second=fb.value,avail2=availableSource(second);if(avail2+0.005<rest)return appNotice(`${sourceLabel(second)} non basta: disponibili ${eur(avail2)}. Riduci la spesa o sposta prima altri fondi.`);funding=[];if(first>0)funding.push({source:primary,amount:first});funding.push({source:second,amount:rest});
+     let second=fb.value,avail2=availableSource(second,editMoveId);if(avail2+0.005<rest)return appNotice(`${sourceLabel(second)} non basta: disponibili ${eur(avail2)}. Riduci la spesa o sposta prima altri fondi.`);funding=[];if(first>0)funding.push({source:primary,amount:first});funding.push({source:second,amount:rest});
    }else funding=[{source:primary,amount:a}];
  }
  let obj={id:editMoveId||Date.now(),type,amount:a,cat:$('#mCat').value,date,desc:$('#mDesc').value.trim(),salary,allocation,goalId,funding};
  // Quando viene registrato un nuovo stipendio già effettivo, chiude il ciclo precedente:
  // l'eventuale disponibilità mensile rimasta diventa Risparmio disponibile una sola volta.
+ if(editMoveId)s.cycles=(s.cycles||[]).filter(c=>String(c.salaryMoveId)!==String(editMoveId));
  if(!editMoveId&&salary&&date<=today()&&currentCycleStart()){
    let oldCycle=Math.max(0,stats().cycle);
    if(oldCycle>0.004)(s.cycles||(s.cycles=[])).push({id:'roll-'+obj.id,date,rollover:oldCycle,salaryMoveId:obj.id});
@@ -290,7 +290,7 @@ $('#settingsBtn').onclick=()=>openTab('settings');$('#infoBtn').onclick=()=>$('#
 $('#reportYear').onchange=renderReport;
 $$('[data-eye]').forEach(b=>b.onclick=async()=>{if(reorderMode)return;s.visibility[b.dataset.eye]=!show(b.dataset.eye);await save();render()});$('#allEye').onclick=async()=>{s.visibility.all=s.visibility.all===false;await save();render()};
 
-$('#saveBudget').onclick=async()=>{let desired=num($('#balanceSet').value),due=effectiveMoves().reduce((a,m)=>a+signed(m),0),free=num($('#savingsSet').value);if(free>desired+0.005)return appNotice('I risparmi liberi iniziali non possono superare il saldo del conto.');s.baseBalance=desired-due;s.balance=desired;s.savings=free;s.savingsLedgerV1Migrated=true;s.initialEarmarked=0;s.initialEarmarkedGoal=null;s.noInitialEarmarkedV13=true;s.goals.forEach(g=>g.saved=0);await save();render();toast('Impostazioni salvate')};
+$('#saveBudget').onclick=async()=>{let desired=num($('#balanceSet').value),free=num($('#savingsSet').value);if(free>desired+0.005)return appNotice('I risparmi liberi iniziali non possono superare il saldo del conto.');s.balance=desired;s.baseBalance=desired;s.balanceIncludedMoveIds=effectiveMoves().map(m=>String(m.id));s.savings=free;s.savingsLedgerV1Migrated=true;s.initialEarmarked=0;s.initialEarmarkedGoal=null;s.noInitialEarmarkedV13=true;s.goals.forEach(g=>g.saved=0);await save();render();toast('Saldo di riferimento aggiornato')};
 $('#saveAppearance').onclick=async()=>{s.appearance.theme=$('#theme').value;s.appearance.accent=$('#accent').value;await save();render();toast('Aspetto salvato')};
 $('#backupFreq').onchange=()=>$('#customFreqWrap').classList.toggle('hide',$('#backupFreq').value!=='-1');
 $('#saveBackupPrefs').onclick=async()=>{let f=Number($('#backupFreq').value);s.backup.freq=f;s.backup.custom=Math.max(1,Number($('#customFreq').value)||15);s.backup.snoozeUntil=null;await save();render();toast('Frequenza backup salvata')};$('#exportBtn').onclick=exportBackup;
@@ -312,5 +312,7 @@ function unlock(){$('#lock').classList.add('hide');$('#unlockPin').value='';$('#
 $('#unlockBtn').onclick=()=>{if(!s.security.pinEnabled||$('#unlockPin').value===s.security.pin)unlock();else $('#unlockMsg').textContent='PIN errato.'};
 $('#bioBtn').onclick=async()=>{if(await verifyBio())unlock();else $('#unlockMsg').textContent='Biometria non riuscita. Usa il PIN.'};
 let hiddenAt=0;document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if((s.security.pinEnabled||s.security.bioEnabled)&&(s.security.lockDelay===0||Date.now()-hiddenAt>=s.security.lockDelay))lock()});
-(async()=>{await load();applyAppearance();applyHomeOrder();initHomeReorder();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=12',{scope:'/Budget-personale/'})})();
+
+function scheduleMidnightRefresh(){let now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1),ms=next-now;setTimeout(()=>{if(!editMoveId)$('#mDate').value=today();render();scheduleMidnightRefresh()},Math.max(1000,ms))}
+(async()=>{await load();applyAppearance();applyHomeOrder();initHomeReorder();render();scheduleMidnightRefresh();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=16',{scope:'/Budget-personale/'})})();
 </script></body></html>

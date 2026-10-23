@@ -1,5 +1,20 @@
 BUDGET PERSONALE PWA — v13
 
+AGGIORNAMENTO v16 — REVISIONE STRUTTURALE
+- Date locali del dispositivo: niente UTC per giorno corrente e scadenze.
+- Aggiornamento automatico della data a mezzanotte locale, anche con cambio ora solare/legale gestito dal dispositivo.
+- Saldo di riferimento nelle Impostazioni = fotografia immutabile finché non viene salvata di nuovo manualmente.
+- I movimenti già effettivi al momento della fotografia sono considerati inclusi; i movimenti futuri incidono sul saldo Home solo alla loro data.
+- Le spese future prenotano subito Risparmi/Fondi; quelle dal Mensile prenotano solo il ciclo corrente.
+- Disponibilità totale = Disponibilità Mensile + Risparmi disponibili.
+- Modifica movimento: la vecchia versione del movimento viene neutralizzata durante il controllo copertura, evitando falsi fondi insufficienti.
+- Eliminazione/modifica stipendio elimina gli eventuali rollover collegati per evitare residui fantasma.
+- Risparmi negativi non vengono più nascosti artificialmente a zero nei calcoli interni.
+- Scadenze fisse arretrate avanzano automaticamente alla ricorrenza successiva.
+- Service worker, manifest e cache allineati a v16.
+- Nessun alert/confirm/prompt nativo del browser: vengono usate finestre interne dell'app.
+
+
 File inclusi:
 - index.html
 - manifest.webmanifest

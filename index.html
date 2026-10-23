@@ -1,6 +1,6 @@
 <!doctype html><html lang="it"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f7f7f8"><link rel="manifest" href="manifest.webmanifest"><title>Budget Personale</title>
+<meta name="theme-color" content="#111113"><link rel="manifest" href="/Budget-personale/manifest.webmanifest?v=5"><link rel="icon" type="image/png" sizes="192x192" href="/Budget-personale/icon-192.png?v=5"><link rel="apple-touch-icon" href="/Budget-personale/icon-192.png?v=5"><title>Budget Personale</title>
 <style>
 :root{--bg:#f6f6f8;--card:#fff;--text:#18181b;--muted:#71717a;--line:#e4e4e7;--accent:#2563eb;--danger:#b42318;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 @media(prefers-color-scheme:dark){:root[data-theme=system]{--bg:#111113;--card:#1c1c1f;--text:#f4f4f5;--muted:#a1a1aa;--line:#34343a}}
@@ -96,5 +96,5 @@ function unlock(){$('#lock').classList.add('hide');$('#unlockPin').value='';$('#
 $('#unlockBtn').onclick=()=>{if(!s.security.pinEnabled||$('#unlockPin').value===s.security.pin)unlock();else $('#unlockMsg').textContent='PIN errato.'};
 $('#bioBtn').onclick=async()=>{try{let id=Uint8Array.from(atob(s.security.credentialId),c=>c.charCodeAt(0)),challenge=crypto.getRandomValues(new Uint8Array(32));await navigator.credentials.get({publicKey:{challenge,allowCredentials:[{type:'public-key',id}],userVerification:'required',timeout:60000}});unlock()}catch{$('#unlockMsg').textContent='Biometria non riuscita. Usa il PIN.'}};
 let hiddenAt=0;document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if((s.security.pinEnabled||s.security.bioEnabled)&&(s.security.lockDelay===0||Date.now()-hiddenAt>=s.security.lockDelay))lock()});
-(async()=>{await load();applyAppearance();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js')})();
+(async()=>{await load();applyAppearance();render();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=5',{scope:'/Budget-personale/'})})();
 </script></body></html>

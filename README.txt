@@ -20,3 +20,5 @@ Se dimentichi la password di un backup cifrato, quel backup non è recuperabile.
 I dati operativi restano nel database locale IndexedDB del dispositivo.
 
 - icona personalizzata nero/blu per installazione PWA
+
+- v5: correzione installazione PWA, manifest forzato, id/scope/start_url espliciti, icone any+maskable, cache aggiornata

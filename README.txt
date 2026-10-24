@@ -1,6 +1,6 @@
-BUDGET PERSONALE — v26
+BUDGET PERSONALE — v27
 
-Versione con motore contabile delle scadenze fisse riscritto.
+Versione con motore contabile delle scadenze fisse e gestione PIN/biometria corretti.
 
 Regole principali:
 - Saldo di riferimento: fotografia manuale; il saldo Home cambia solo per movimenti effettivi non inclusi nella fotografia.
@@ -17,3 +17,9 @@ Regole principali:
 
 Aggiornamento GitHub Pages:
 Sostituire index.html, manifest.webmanifest, sw.js, icon-192.png, icon-512.png e README.txt. Non modificare .github/workflows/static.yml.
+
+Sicurezza v27:
+- PIN sempre disponibile come fallback della biometria.
+- Disattivazione biometria autorizzata dal PIN, senza richiedere la biometria stessa.
+- Disattivando il PIN si disattiva tutta la protezione e si elimina il riferimento biometrico locale.
+- La biometria può essere riattivata in futuro e registra una nuova credenziale del dispositivo.

@@ -351,6 +351,7 @@ let securitySessionAuthenticated=false;
 $('#saveSecurity').onclick=async()=>{
  let pe=$('#pinEnabled').checked,p=$('#pinSet').value.trim(),be=$('#bioEnabled').checked;
  if(!pe){
+  if(be){$('#bioEnabled').checked=false;return appNotice('PIN necessario. Per attivare l\'accesso biometrico devi prima attivare la protezione con PIN e impostare un PIN. Il PIN resterà disponibile come metodo di accesso alternativo.')}
   s.security={...D.security,lockDelay:Number($('#lockDelay').value)||0};
   securitySessionAuthenticated=false;
   await save();$('#pinSet').value='';render();toast('Protezione app disattivata');return

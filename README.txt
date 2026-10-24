@@ -1,4 +1,4 @@
-BUDGET PERSONALE — v30
+BUDGET PERSONALE — v32
 
 Versione con motore contabile delle scadenze fisse e gestione PIN/biometria corretti.
 
@@ -18,14 +18,14 @@ Regole principali:
 Aggiornamento GitHub Pages:
 Sostituire index.html, manifest.webmanifest, sw.js, icon-192.png, icon-512.png e README.txt. Non modificare .github/workflows/static.yml.
 
-Sicurezza v30:
+Sicurezza v32:
 - PIN sempre disponibile come fallback della biometria.
-- Disattivazione biometria autorizzata dal PIN, senza richiedere la biometria stessa.
+- Dopo lo sblocco dell’app, biometria e PIN possono essere disattivati senza una seconda autenticazione.
 - Disattivando il PIN si disattiva tutta la protezione e si elimina il riferimento biometrico locale.
 - La biometria può essere riattivata in futuro e registra una nuova credenziale del dispositivo.
 
 
-v30: correzione sicurezza. La disattivazione PIN/biometria riconosce la sessione sbloccata con PIN; la biometria viene registrata come credenziale WebAuthn di piattaforma non discoverable, con PIN sempre disponibile come recupero.
+v32: sicurezza riscritta. Il PIN viene creato solo se l’utente lo inserisce esplicitamente e viene verificato in modo stretto. La biometria ripristina il flusso WebAuthn di piattaforma non residente usato nelle versioni precedenti funzionanti e viene segnata attiva solo dopo registrazione riuscita.
 
 
-v30: recupero automatico dello stato corrotto bioEnabled=true/pinEnabled=false creato dalle versioni precedenti. In tale stato vengono azzerate esclusivamente le impostazioni di sicurezza; i dati del budget restano intatti. Nessun PIN arbitrario può più sbloccare una protezione biometrica.
+v32: recupero automatico dello stato corrotto bioEnabled=true/pinEnabled=false creato dalle versioni precedenti. In tale stato vengono azzerate esclusivamente le impostazioni di sicurezza; i dati del budget restano intatti. Nessun PIN arbitrario può più sbloccare una protezione biometrica.

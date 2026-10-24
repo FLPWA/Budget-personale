@@ -1,6 +1,6 @@
 <!doctype html><html lang="it"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111113"><link rel="manifest" href="/Budget-personale/manifest.webmanifest?v=27"><link rel="icon" type="image/png" sizes="192x192" href="/Budget-personale/icon-192.png?v=27"><link rel="apple-touch-icon" href="/Budget-personale/icon-192.png?v=27"><title>Budget Personale</title>
+<meta name="theme-color" content="#111113"><link rel="manifest" href="/Budget-personale/manifest.webmanifest?v=32"><link rel="icon" type="image/png" sizes="192x192" href="/Budget-personale/icon-192.png?v=32"><link rel="apple-touch-icon" href="/Budget-personale/icon-192.png?v=32"><title>Budget Personale</title>
 <style>
 :root{--bg:#f6f6f8;--card:#fff;--text:#18181b;--muted:#71717a;--line:#e4e4e7;--accent:#2563eb;--danger:#b42318;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 @media(prefers-color-scheme:dark){:root[data-theme=system]{--bg:#111113;--card:#1c1c1f;--text:#f4f4f5;--muted:#a1a1aa;--line:#34343a}}
@@ -78,7 +78,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px
 <nav><div><button data-tab="home" class="navon">Home</button><button data-tab="moves">Movimenti</button><button data-tab="fixed">Fisse</button><button data-tab="goals">Obiettivi</button><button data-tab="report">Report</button></div></nav>
 <script>
 const DB='BudgetPersonaleDB',STORE='state',KEY='main';
-const D={dataSchema:30,balance:0,balanceIncludedMoveIds:null,savings:0,moves:[],fixed:[],goals:[],cycles:[],transfers:[],categories:[{id:1,n:'Spesa alimentare',t:'expense'},{id:2,n:'Casa',t:'expense'},{id:3,n:'Auto e carburante',t:'expense'},{id:4,n:'Ristoranti',t:'expense'},{id:5,n:'Svago',t:'expense'},{id:6,n:'Salute',t:'expense'},{id:7,n:'Abbonamenti',t:'expense'},{id:8,n:'Stipendio',t:'income'},{id:9,n:'Altre entrate',t:'income'}],visibility:{all:true},appearance:{theme:'system',accent:'#2563eb'},security:{pinEnabled:false,pin:'',bioEnabled:false,credentialId:null,lockDelay:0},backup:{freq:15,custom:15,last:null,snoozeUntil:null},homeOrder:['balance','savings','cycle','total','earmarked','reserve']};
+const D={dataSchema:32,balance:0,balanceIncludedMoveIds:null,savings:0,moves:[],fixed:[],goals:[],cycles:[],transfers:[],categories:[{id:1,n:'Spesa alimentare',t:'expense'},{id:2,n:'Casa',t:'expense'},{id:3,n:'Auto e carburante',t:'expense'},{id:4,n:'Ristoranti',t:'expense'},{id:5,n:'Svago',t:'expense'},{id:6,n:'Salute',t:'expense'},{id:7,n:'Abbonamenti',t:'expense'},{id:8,n:'Stipendio',t:'income'},{id:9,n:'Altre entrate',t:'income'}],visibility:{all:true},appearance:{theme:'system',accent:'#2563eb'},security:{pinEnabled:false,pin:'',bioEnabled:false,credentialId:null,lockDelay:0},backup:{freq:15,custom:15,last:null,snoozeUntil:null},homeOrder:['balance','savings','cycle','total','earmarked','reserve']};
 let s,editMoveId=null,editGoalIndex=null,editFixedIndex=null,editTransferId=null,editCategoryIndex=null,toastTimer=null;
 const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)],localDate=d=>{d=d||new Date();let y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`},today=()=>localDate(),eur=n=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n||0),num=v=>{let x=String(v||'').trim().replace(/\s/g,'');if(x.includes(','))x=x.replace(/\./g,'').replace(',','.');return Number(x)||0};
 const signed=m=>m.type==='income'?m.amount:-m.amount;
@@ -109,12 +109,16 @@ async function load(){let db=await dbOpen();s=await new Promise(res=>{let q=db.t
  s.goals=(s.goals||[]).map((g,i)=>({...g,id:g.id||('g'+Date.now()+i)}));
  if(priorSchema<13){if(!s.savingsLedgerV1Migrated){s.savings=0;s.cycles=[]}s.goals.forEach(g=>g.saved=0)}
  ['baseBalance','initialEarmarked','initialEarmarkedGoal','earmarkedV9Migrated','savingsLedgerV1Migrated','noInitialEarmarkedV13','currentCycleStart'].forEach(k=>delete s[k]);
- // v30: recupero dello stato corrotto creato dalle versioni precedenti: biometria attiva senza un PIN realmente configurato.
- // In questo stato il pulsante PIN sbloccava qualunque valore perché pinEnabled era false. Ripulisce SOLO la sicurezza.
- if(s.security.bioEnabled&&!s.security.pinEnabled){s.security={...D.security,lockDelay:Number(s.security.lockDelay)||0};}
- // Anche un PIN marcato attivo ma assente/non valido non è una protezione recuperabile: ripulisce SOLO la sicurezza.
- if(s.security.pinEnabled&&!/^\d{4,8}$/.test(String(s.security.pin||''))){s.security={...D.security,lockDelay:Number(s.security.lockDelay)||0};}
- s.dataSchema=30;
+ // Migrazione: le versioni 27-30 hanno avuto regressioni nella sicurezza. Una sola volta, migrando da tali versioni,
+ // riparte con la sicurezza disattivata senza toccare alcun dato contabile. Dopo il passaggio a schema 31 non si ripete.
+ if(priorSchema>=27&&priorSchema<=30&&(s.security.pinEnabled||s.security.bioEnabled||s.security.pin||s.security.credentialId)){
+  s.security={...D.security,lockDelay:Number(s.security.lockDelay)||0};
+ }
+ // Qualunque stato strutturalmente impossibile viene reso sicuro e recuperabile.
+ if((s.security.bioEnabled&&!s.security.pinEnabled)||(s.security.pinEnabled&&!/^\d{4,8}$/.test(String(s.security.pin||'')))){
+  s.security={...D.security,lockDelay:Number(s.security.lockDelay)||0};
+ }
+ s.dataSchema=32;
  s.fixed.forEach(f=>{if(Number(f.freq)>1&&!f.accrualStart)f.accrualStart=currentCycleStart()||today()});
 }
 async function save(){let db=await dbOpen();return new Promise((res,rej)=>{let tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(s,KEY);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
@@ -261,7 +265,7 @@ function backupReminder(){let el=$('#backupReminder'),days=s.backup.freq===-1?s.
 function b64(u8){let x='';u8.forEach(v=>x+=String.fromCharCode(v));return btoa(x)}
 function unb64(x){return Uint8Array.from(atob(x),c=>c.charCodeAt(0))}
 async function backupKey(password,salt){let base=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
-async function exportBackup(){let password=$('#backupPassword').value;if(password.length<6)return appNotice('Inserisci una password di almeno 6 caratteri per il backup.');try{let salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await backupKey(password,salt),plain=new TextEncoder().encode(JSON.stringify({format:'BudgetPersonale',version:8,dataSchema:30,appVersion:29,created:new Date().toISOString(),data:s})),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain)),payload={format:'BudgetPersonaleEncrypted',version:1,kdf:'PBKDF2-SHA256',iterations:250000,cipher:'AES-GCM-256',salt:b64(salt),iv:b64(iv),data:b64(cipher)};let blob=new Blob([JSON.stringify(payload)],{type:'application/octet-stream'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='Budget_Backup_'+today()+'.budget';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);s.backup.last=new Date().toISOString();s.backup.snoozeUntil=null;await save();$('#backupPassword').value='';render();toast('Backup creato')}catch(e){await appNotice('Non è stato possibile creare il backup.')} }
+async function exportBackup(){let password=$('#backupPassword').value;if(password.length<6)return appNotice('Inserisci una password di almeno 6 caratteri per il backup.');try{let salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await backupKey(password,salt),plain=new TextEncoder().encode(JSON.stringify({format:'BudgetPersonale',version:8,dataSchema:32,appVersion:32,created:new Date().toISOString(),data:s})),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain)),payload={format:'BudgetPersonaleEncrypted',version:1,kdf:'PBKDF2-SHA256',iterations:250000,cipher:'AES-GCM-256',salt:b64(salt),iv:b64(iv),data:b64(cipher)};let blob=new Blob([JSON.stringify(payload)],{type:'application/octet-stream'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='Budget_Backup_'+today()+'.budget';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);s.backup.last=new Date().toISOString();s.backup.snoozeUntil=null;await save();$('#backupPassword').value='';render();toast('Backup creato')}catch(e){await appNotice('Non è stato possibile creare il backup.')} }
 $('#importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let p=JSON.parse(await f.text()),restored;if(p.format==='BudgetPersonaleEncrypted'){let password=await appPrompt('Inserisci la password del backup:',{title:'Ripristina backup'});if(password===null){e.target.value='';return}let salt=unb64(p.salt),iv=unb64(p.iv),key=await backupKey(password,salt),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,unb64(p.data));let inner=JSON.parse(new TextDecoder().decode(plain));if(inner.format!=='BudgetPersonale'||!inner.data)throw 0;restored=inner.data}else if(p.format==='BudgetPersonale'&&p.data){if(!await appConfirm('Questo è un vecchio backup non cifrato. Vuoi comunque ripristinarlo?',{title:'Backup non cifrato',ok:'Continua',danger:false})){e.target.value='';return}restored=p.data}else throw 0;if(!await appConfirm('I dati attuali verranno sostituiti con quelli del backup.',{title:'Ripristinare il backup?',ok:'Ripristina'})){e.target.value='';return}s=restored;await save();location.reload()}catch{await appNotice('Password errata oppure file di backup non valido.')}e.target.value=''};
 
 function clearMoveForm(){editMoveId=null;$('#mType').value='expense';$('#isSalary').checked=false;fillCats();$('#mAllocation').value='monthly';updateMoveAllocation();$('#mAmount').value='';$('#mDate').value=today();$('#mDesc').value='';$('#fallbackWrap').classList.add('hide');$('#fallbackFundWrap').classList.add('hide');$('#moveFundWrap').classList.add('hide');$('#addMove').textContent='Salva movimento';$('#cancelMoveEdit').classList.add('hide')}
@@ -321,80 +325,67 @@ $('#settingsBtn').onclick=()=>openTab('settings');$('#infoBtn').onclick=()=>$('#
 $('#reportYear').onchange=renderReport;
 $$('[data-eye]').forEach(b=>b.onclick=async()=>{if(reorderMode)return;s.visibility[b.dataset.eye]=!show(b.dataset.eye);await save();render()});$('#allEye').onclick=async()=>{s.visibility.all=s.visibility.all===false;await save();render()};
 
-$('#saveBudget').onclick=async()=>{let desired=num($('#balanceSet').value),free=num($('#savingsSet').value);if(free>desired+0.005)return appNotice('I risparmi liberi iniziali non possono superare il saldo del conto.');s.balance=desired;s.balanceIncludedMoveIds=effectiveMoves().map(m=>String(m.id));s.savings=free;s.dataSchema=30;await save();render();toast('Saldo di riferimento aggiornato')};
+$('#saveBudget').onclick=async()=>{let desired=num($('#balanceSet').value),free=num($('#savingsSet').value);if(free>desired+0.005)return appNotice('I risparmi liberi iniziali non possono superare il saldo del conto.');s.balance=desired;s.balanceIncludedMoveIds=effectiveMoves().map(m=>String(m.id));s.savings=free;s.dataSchema=32;await save();render();toast('Saldo di riferimento aggiornato')};
 $('#saveAppearance').onclick=async()=>{s.appearance.theme=$('#theme').value;s.appearance.accent=$('#accent').value;await save();render();toast('Aspetto salvato')};
 $('#backupFreq').onchange=()=>$('#customFreqWrap').classList.toggle('hide',$('#backupFreq').value!=='-1');
 $('#saveBackupPrefs').onclick=async()=>{let f=Number($('#backupFreq').value);s.backup.freq=f;s.backup.custom=Math.max(1,Number($('#customFreq').value)||15);s.backup.snoozeUntil=null;await save();render();toast('Frequenza backup salvata')};$('#exportBtn').onclick=exportBackup;
 
-function bytesToB64url(bytes){return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
-function b64urlToBytes(v){let x=String(v||'').replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';return Uint8Array.from(atob(x),c=>c.charCodeAt(0))}
 async function setupBio(){
- if(!window.PublicKeyCredential||!navigator.credentials)return false;
+ if(!window.PublicKeyCredential)return false;
  try{
-  if(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable&&!(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()))return false;
-  let challenge=crypto.getRandomValues(new Uint8Array(32)),uid=crypto.getRandomValues(new Uint8Array(32));
-  let cred=await navigator.credentials.create({publicKey:{challenge,rp:{id:location.hostname,name:'Budget Personale'},user:{id:uid,name:'budget-personale',displayName:'Budget Personale'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'discouraged',requireResidentKey:false,userVerification:'required'},attestation:'none',timeout:60000}});
+  let challenge=crypto.getRandomValues(new Uint8Array(32)),uid=crypto.getRandomValues(new Uint8Array(16)),cred=await navigator.credentials.create({publicKey:{challenge,rp:{name:'Budget Personale'},user:{id:uid,name:'budget-user',displayName:'Budget'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});
   if(!cred)return false;
-  s.security.credentialId=bytesToB64url(new Uint8Array(cred.rawId));
+  s.security.credentialId=btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
   return true
- }catch(e){console.warn('Registrazione biometrica non riuscita',e);return false}
+ }catch{return false}
 }
 async function verifyBio(){
- if(!s.security.credentialId||!window.PublicKeyCredential||!navigator.credentials)return false;
+ if(!s.security.credentialId)return false;
  try{
-  let id=b64urlToBytes(s.security.credentialId),challenge=crypto.getRandomValues(new Uint8Array(32));
-  let assertion=await navigator.credentials.get({publicKey:{challenge,rpId:location.hostname,allowCredentials:[{type:'public-key',id,transports:['internal']}],userVerification:'required',timeout:60000}});
-  return !!assertion
- }catch(e){console.warn('Verifica biometrica non riuscita',e);return false}
+  let id=Uint8Array.from(atob(s.security.credentialId),c=>c.charCodeAt(0)),challenge=crypto.getRandomValues(new Uint8Array(32));
+  await navigator.credentials.get({publicKey:{challenge,allowCredentials:[{type:'public-key',id}],userVerification:'required',timeout:60000}});
+  return true
+ }catch{return false}
 }
-let pinSessionVerified=false,sessionPinProof=null;
-async function requireCurrentPin(message='Inserisci il PIN attuale per confermare:'){
- if(!s.security.pinEnabled||!s.security.pin)return false;
- // Una sessione sbloccata con quel PIN è già una conferma valida.
- if(pinSessionVerified&&sessionPinProof===s.security.pin)return true;
- let old=await appPrompt(message,{title:'Conferma PIN'});
- if(String(old??'')===String(s.security.pin)){pinSessionVerified=true;sessionPinProof=s.security.pin;return true}
- return false
-}
+let securitySessionAuthenticated=false;
 $('#saveSecurity').onclick=async()=>{
  let pe=$('#pinEnabled').checked,p=$('#pinSet').value.trim(),be=$('#bioEnabled').checked;
- let turningOffPin=s.security.pinEnabled&&!pe;
- // Spegnere il PIN significa spegnere tutta la protezione: non obbligare l'utente a togliere anche la spunta biometrica.
- if(turningOffPin){be=false;$('#bioEnabled').checked=false}
- // La biometria può essere attivata solo se il PIN resta attivo.
- if(be&&!pe){$('#bioEnabled').checked=false;be=false}
- let turningOffBio=s.security.bioEnabled&&!be;
- let changingPin=!!p&&s.security.pinEnabled&&p!==s.security.pin;
- if(turningOffPin||turningOffBio||changingPin){
-  if(!await requireCurrentPin(turningOffPin?'Inserisci il PIN attuale per disattivare la protezione dell’app:':'Inserisci il PIN attuale per modificare la sicurezza:')){
-   $('#pinEnabled').checked=s.security.pinEnabled;$('#bioEnabled').checked=s.security.bioEnabled;$('#pinSet').value='';return appNotice('PIN attuale errato. Protezione non modificata.')
+ if(!pe){
+  s.security={...D.security,lockDelay:Number($('#lockDelay').value)||0};
+  securitySessionAuthenticated=false;
+  await save();$('#pinSet').value='';render();toast('Protezione app disattivata');return
+ }
+ if(!s.security.pinEnabled){
+  if(!/^\d{4,8}$/.test(p))return appNotice('Scegli un PIN da 4 a 8 cifre.');
+  s.security.pin=p;s.security.pinEnabled=true;securitySessionAuthenticated=true;
+ }else if(p){
+  if(!/^\d{4,8}$/.test(p))return appNotice('PIN non valido: usa da 4 a 8 cifre.');
+  if(!securitySessionAuthenticated)return appNotice('Sblocca prima l’app per modificare il PIN.');
+  s.security.pin=p;
+ }
+ s.security.lockDelay=Number($('#lockDelay').value)||0;
+ if(be&&!s.security.credentialId){
+  if(!await setupBio()){
+   s.security.bioEnabled=false;s.security.credentialId=null;$('#bioEnabled').checked=false;
+   await save();$('#pinSet').value='';render();return appNotice('Biometria non disponibile o configurazione annullata. Il PIN resta attivo.');
   }
  }
- if(pe&&!s.security.pin&&!/^\d{4,8}$/.test(p))return appNotice('Inserisci un PIN da 4 a 8 cifre.');
- if(p){if(!/^\d{4,8}$/.test(p))return appNotice('PIN non valido.');s.security.pin=p;pinSessionVerified=true;sessionPinProof=s.security.pin}
- if(!pe){s.security.pinEnabled=false;s.security.pin='';s.security.bioEnabled=false;s.security.credentialId=null;s.security.lockDelay=Number($('#lockDelay').value);pinSessionVerified=false;sessionPinProof=null;await save();$('#pinSet').value='';render();toast('Protezione app disattivata');return}
- s.security.pinEnabled=true;s.security.lockDelay=Number($('#lockDelay').value);
- if(be&&!s.security.bioEnabled){
-  // Una nuova attivazione crea sempre una nuova credenziale, senza riusare riferimenti vecchi.
-  s.security.credentialId=null;
-  if(!await setupBio()){be=false;$('#bioEnabled').checked=false;s.security.bioEnabled=false;s.security.credentialId=null;await save();render();return appNotice('Impossibile attivare la biometria. Il PIN resta attivo e puoi riprovare in seguito.')}
- }
- if(!be){s.security.bioEnabled=false;s.security.credentialId=null}else s.security.bioEnabled=true;
+ s.security.bioEnabled=!!(be&&s.security.credentialId);
+ if(!be)s.security.credentialId=null;
  await save();$('#pinSet').value='';render();toast('Sicurezza salvata')
 };
-function lock(){if(!s.security.pinEnabled&&!s.security.bioEnabled)return;pinSessionVerified=false;sessionPinProof=null;$('#lock').classList.remove('hide');$('#bioBtn').classList.toggle('hide',!(s.security.bioEnabled&&s.security.credentialId))}
-function unlock(){$('#lock').classList.add('hide');$('#unlockPin').value='';$('#unlockMsg').textContent=''}
-$('#unlockBtn').onclick=async()=>{
- // Non esiste più alcun percorso in cui un PIN arbitrario possa sbloccare una protezione biometrica senza PIN.
- if(!s.security.pinEnabled){
-  if(s.security.bioEnabled){s.security={...D.security,lockDelay:Number(s.security.lockDelay)||0};await save();render();unlock();toast('Sicurezza precedente ripristinata');return}
-  unlock();return
- }
- let entered=$('#unlockPin').value;if(String(entered)===String(s.security.pin)){pinSessionVerified=true;sessionPinProof=s.security.pin;unlock()}else $('#unlockMsg').textContent='PIN errato.'
-};
-$('#bioBtn').onclick=async()=>{if(await verifyBio()){pinSessionVerified=false;sessionPinProof=null;unlock()}else $('#unlockMsg').textContent='Biometria non riuscita. Usa il PIN.'};
+function lock(){
+ if(!s.security.pinEnabled&&!s.security.bioEnabled)return;
+ securitySessionAuthenticated=false;
+ $('#lock').classList.remove('hide');
+ $('#bioBtn').classList.toggle('hide',!(s.security.bioEnabled&&s.security.credentialId));
+ $('#unlockMsg').textContent='';$('#unlockPin').value=''
+}
+function unlock(){securitySessionAuthenticated=true;$('#lock').classList.add('hide');$('#unlockPin').value='';$('#unlockMsg').textContent=''}
+$('#unlockBtn').onclick=()=>{if(s.security.pinEnabled&&$('#unlockPin').value===s.security.pin)unlock();else $('#unlockMsg').textContent='PIN errato.'};
+$('#bioBtn').onclick=async()=>{if(await verifyBio())unlock();else $('#unlockMsg').textContent='Biometria non riuscita. Usa il PIN.';};
 let hiddenAt=0;document.addEventListener('visibilitychange',async()=>{if(document.hidden){hiddenAt=Date.now();return}if(syncLifecycle())await save();render();if((s.security.pinEnabled||s.security.bioEnabled)&&(s.security.lockDelay===0||Date.now()-hiddenAt>=s.security.lockDelay))lock()});
 
 function scheduleMidnightRefresh(){let now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1),ms=next-now;setTimeout(async()=>{if(!editMoveId)$('#mDate').value=today();if(syncLifecycle())await save();render();scheduleMidnightRefresh()},Math.max(1000,ms))}
-(async()=>{await load();if(syncLifecycle())await save();applyAppearance();applyHomeOrder();initHomeReorder();render();scheduleMidnightRefresh();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=30',{scope:'/Budget-personale/'})})();
+(async()=>{await load();if(syncLifecycle())await save();applyAppearance();applyHomeOrder();initHomeReorder();render();scheduleMidnightRefresh();if(s.security.pinEnabled||s.security.bioEnabled)lock();if('serviceWorker'in navigator)navigator.serviceWorker.register('/Budget-personale/sw.js?v=32',{scope:'/Budget-personale/'})})();
 </script></body></html>
